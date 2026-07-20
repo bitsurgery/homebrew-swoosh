@@ -32,7 +32,7 @@ class Swoosh < Formula
     on_arm do
       # TODO: replace url/sha256 with the real aarch64 tarball from release.sh output.
       url "https://github.com/bitsurgery/swoosh/releases/download/v0.1.0/swoosh-0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "b78e6bbb7005eca89a03aa573486a314fbd5417dfb9d7ec0f75493b10c73413b"
+      sha256 "53aadaf8dcd2190713ccf00838ce5d72daefd1f806c05877db5ad13329407ae2"
     end
 
     on_intel do
@@ -43,14 +43,18 @@ class Swoosh < Formula
   end
 
   def install
-    # The tarball extracts to a single top-level dir
-    # `swoosh-{version}-{triple}/` containing the three binaries as siblings.
-    # Locate that dir explicitly (don't rely on the install cwd) and install all
-    # three binaries flat into bin/ as siblings. CRITICAL: the proxy resolves the
-    # two musl payloads via current_exe().parent(), so they MUST sit next to the
-    # swoosh binary in the same directory — do NOT split into libexec + symlink.
-    pkg = Dir["swoosh-*"].find { |d| File.directory?(d) }
-    odie "Tarball did not extract a swoosh-* directory" if pkg.nil?
+    # The tarball contains the three binaries as siblings (swoosh + the two
+    # musl payloads). release.sh packages them under a `swoosh-{version}-{triple}/`
+    # dir, but be robust to the exact extraction layout (a wrapper dir from the
+    # upload process, or flat at the root): find the dir that actually contains
+    # the `swoosh` binary. CRITICAL: install all three flat into bin/ as siblings
+    # (no libexec split) — the proxy resolves the two musl payloads via
+    # current_exe().parent(), so they MUST sit next to the swoosh binary.
+    pkg = ["swoosh-*", "*", "."].each do |glob|
+      found = Dir[glob].find { |d| File.file?(File.join(d, "swoosh")) }
+      break found if found
+    end
+    odie "Tarball did not extract a directory containing the swoosh binary" if pkg.nil?
 
     bin.install "#{pkg}/swoosh"
     bin.install Dir["#{pkg}/swoosh-host-shim-linux-*"]
