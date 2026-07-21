@@ -31,8 +31,8 @@ class Swoosh < Formula
   on_macos do
     on_arm do
       # TODO: replace url/sha256 with the real aarch64 tarball from release.sh output.
-      url "https://github.com/bitsurgery/swoosh/releases/download/v0.1.1/swoosh-0.1.1-aarch64-apple-darwin.tar.gz"
-      sha256 "aa2cb6e67f8597911f501b1bad686b4d21752535ee4373a38ffb90f7075687fc"
+      url "https://github.com/bitsurgery/swoosh/releases/download/v0.1.2/swoosh-0.1.2-aarch64-apple-darwin.tar.gz"
+      sha256 "f54b74632ecc740e012a1c4c8aadfe6c98af164e48e83f17c61f4ad6e92e07e7"
     end
 
     on_intel do
@@ -56,9 +56,16 @@ class Swoosh < Formula
     end
     odie "Tarball did not extract a directory containing the swoosh binary" if pkg.nil?
 
+    # Install all three binaries flat into bin/ as siblings.
     bin.install "#{pkg}/swoosh"
     bin.install Dir["#{pkg}/swoosh-host-shim-linux-*"]
     bin.install Dir["#{pkg}/swoosh-relay-linux-*"]
+
+    # Force the executable bit on all three. The two musl payloads are Linux
+    # ELF binaries that the proxy execs INSIDE the container, so they MUST be
+    # chmod +x — and Homebrew's audit rejects non-executables in bin/. The bit
+    # can be dropped by the upload/download pipeline, so set it explicitly here.
+    chmod "+x", Dir["#{bin}/*"]
   end
 
   def caveats
